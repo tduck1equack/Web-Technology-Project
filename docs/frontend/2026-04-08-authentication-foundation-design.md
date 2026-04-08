@@ -39,6 +39,11 @@ This document specifies the authentication foundation for the Vietnamese Teams L
 - Server Components for protected pages and auth checks
 - Client Components for auth forms and interactive elements
 - Middleware for route protection and redirects
+- **API Layer**: Axios with React Query for server state management
+- **Client State**: Zustand for local UI state management
+- **UI Components**: Radix UI + Radix Themes for accessible component library
+- **Styling**: Tailwind CSS for utility-first styling
+- **Validation**: Zod for schema validation and type safety
 
 **Backend (NestJS API)**:
 
@@ -282,8 +287,9 @@ User sees rendered page with data ← Server Component ← API Response ← Filt
 
 - Server Components: Use `createServerComponentClient()` for auth checks
 - Client Components: Use `createClientComponentClient()` for auth actions
-- No global auth context needed - server components handle state
-- Client forms call server actions for auth operations
+- **Server State**: React Query for API calls, caching, and synchronization
+- **Client State**: Zustand stores for UI state (modals, form steps, etc.)
+- **Form State**: React Hook Form with Zod validation
 
 ### Educational Profile State
 
@@ -305,24 +311,25 @@ interface UserProfileContext {
 
 ### API Integration Pattern
 
-- Server Actions for mutations (login, signup, profile updates)
-- Direct API calls from Server Components for data fetching
-- Client Components only for interactive forms and real-time features
-- All API calls include Supabase JWT automatically via SSR client
+- **API Client**: Axios with interceptors for JWT token attachment
+- **Server State**: React Query for caching, background updates, optimistic UI
+- **Data Fetching**: React Query queries for GET operations
+- **Mutations**: React Query mutations for POST/PUT/DELETE operations
+- **SSR Integration**: Initial data fetched in Server Components, hydrated to React Query
 
 ### Caching Strategy
 
-- Next.js built-in caching for org/department/major data (rarely changes)
-- User profile data: no cache (frequent updates, security sensitive)
-- Static academic data: Cache with revalidation tags for admin updates
-- Request queue data: Real-time updates via polling or webhooks
+- **React Query**: Automatic caching and background refetching for API data
+- **Static Data**: Organizations/departments cached with longer stale times
+- **User Profile**: Short cache duration with frequent background updates
+- **Real-time Data**: WebSocket integration with React Query invalidation
 
 ### Form Handling
 
-- Server Actions for form submissions with validation
-- Progressive enhancement: forms work without JavaScript
-- Client-side validation for UX, server-side for security
-- Optimistic updates for non-critical interactions
+- **React Hook Form**: Form state management with performance optimization
+- **Zod Integration**: Schema validation with TypeScript inference
+- **Server Validation**: Backend validation as final security layer
+- **Optimistic Updates**: React Query mutations with rollback on failure
 
 ## Error Handling & Security Implementation
 
@@ -438,10 +445,24 @@ async endpoint(@CurrentUser() user: UserContext) {
 
 ### Dependencies to Add
 
+**Core Dependencies**:
+
 - `@supabase/ssr` - Server-side Supabase client
-- `zod` - Schema validation (if not already present)
-- `react-hook-form` - Form handling
-- Additional UI components as needed from shared packages
+- `zod` - Schema validation and type safety
+- `axios` - HTTP client for API calls
+- `@tanstack/react-query` - Server state management
+- `zustand` - Client state management
+
+**UI & Styling**:
+
+- `@radix-ui/react-*` - Accessible component primitives
+- `@radix-ui/themes` - Design system and theming
+- `tailwindcss` - Utility-first CSS framework (if not already installed)
+
+**Form Handling**:
+
+- `react-hook-form` - Form state management and validation
+- `@hookform/resolvers` - Zod integration for react-hook-form
 
 ### Integration Points
 
