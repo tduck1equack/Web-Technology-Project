@@ -6,6 +6,8 @@ import {
   Param,
   UseGuards,
   Request,
+  Put,
+  Delete,
 } from '@nestjs/common';
 import {
   SupabaseAuthGuard,
@@ -21,6 +23,96 @@ import { UserRole, MessageType } from '../../generated/prisma';
 export class ClassesController {
   constructor(private prisma: PrismaService) {}
 
+  // Get all classes (accessible by user via RLS)
+  @Get()
+  async getAllClasses(@Request() req: any) {
+    const user = req.user;
+
+    return this.prisma.withUserContext(user.authUserId, async () => {
+      return this.prisma.classInstance.findMany({
+        include: {
+          course: true,
+        },
+      });
+    });
+  }
+
+  // Get class by ID (with RLS protection)
+  @Get(':id')
+  async getClassById(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const user = req.user;
+
+    return this.prisma.withUserContext(user.authUserId, async () => {
+      return this.prisma.classInstance.findUnique({
+        where: { id },
+        include: {
+          course: true,
+        },
+      });
+    });
+  }
+
+  // Create a new class (teachers and admins only)
+  @Post()
+  @UseGuards(RolesGuard)
+  @RequireRoles(UserRole.TEACHER, UserRole.ADMIN)
+  async createClass(
+    @Body()
+    classData: {
+      name: string;
+      semester: string;
+      year: number;
+      courseId: string;
+    },
+    @Request() req: any,
+  ) {
+    const user = req.user;
+
+    return this.prisma.withUserContext(user.authUserId, async () => {
+      return this.prisma.classInstance.create({
+        data: classData,
+      });
+    });
+  }
+
+  // Update class information (teachers and admins only)
+  @Put(':id')
+  @UseGuards(RolesGuard)
+  @RequireRoles(UserRole.TEACHER, UserRole.ADMIN)
+  async updateClass(
+    @Param('id') id: string,
+    @Body() updateData: any,
+    @Request() req: any,
+  ) {
+    const user = req.user;
+
+    return this.prisma.withUserContext(user.authUserId, async () => {
+      return this.prisma.classInstance.update({
+        where: { id },
+        data: updateData,
+      });
+    });
+  }
+
+  // Delete a class (teachers and admins only)
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @RequireRoles(UserRole.TEACHER, UserRole.ADMIN)
+  async deleteClass(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    const user = req.user;
+
+    return this.prisma.withUserContext(user.authUserId, async () => {
+      return this.prisma.classInstance.delete({
+        where: { id },
+      });
+    });
+  }
   // Get user's enrolled classes
   @Get('my-classes')
   async getMyClasses(@Request() req: any) {
@@ -145,7 +237,7 @@ export class ClassesController {
       });
     });
   }
-
+  
   // Create assignment (teachers only)
   @Post(':classInstanceId/assignments')
   @UseGuards(ClassMemberGuard, RolesGuard)
@@ -187,3 +279,4 @@ export class ClassesController {
     });
   }
 }
+
