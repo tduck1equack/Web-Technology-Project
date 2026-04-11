@@ -26,9 +26,9 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Missing required Supabase environment variables");
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes("placeholder")) {
+    console.warn("Supabase not configured - allowing all routes");
+    return response;
   }
 
   // Create Supabase client for middleware
@@ -53,7 +53,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/login", "/signup", "/verify", "/reset-password"];
+  const publicRoutes = ["/login", "/signup", "/verify", "/reset-password", "/"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
   // Skip auth checks for API routes - they should handle auth independently
@@ -68,15 +68,15 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getSession();
 
     // Redirect unauthenticated users to login (except on public routes)
-    if (!session && !isPublicRoute) {
+    if (!session && !isPublicRoute && pathname.startsWith("/(protected)")) {
       const redirectUrl = new URL("/login", request.url);
       redirectUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(redirectUrl);
     }
 
-    // Redirect authenticated users away from auth pages
-    if (session && isPublicRoute) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+    // Redirect authenticated users away from auth pages (but allow home page)
+    if (session && isPublicRoute && pathname !== "/") {
+      return NextResponse.redirect(new URL("/classes", request.url));
     }
 
     // Note: Profile completion checks will be added when API endpoint is available
