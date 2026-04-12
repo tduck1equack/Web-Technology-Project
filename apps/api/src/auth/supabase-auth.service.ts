@@ -6,18 +6,22 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole } from '../../generated/prisma';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class SupabaseService {
   private supabase: SupabaseClient;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
     this.supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      this.configService.get<string>('NEXT_PUBLIC_SUPABASE_URL')!,
+      this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY')!,
     );
   }
 
@@ -45,11 +49,77 @@ export class SupabaseService {
       },
     });
   }
+
+  async register(registerDto: any) {
+    const { email, password, firstName, lastName, username } = registerDto;
+    
+    const { data, error } = await this.client.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          username: username,
+          role: 'STUDENT',
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      success: true,
+      message: 'User registered successfully. Please verify email if required.',
+      data: data,
+    };
+  }
+
+  async login(loginDto: any) {
+    const { email, password } = loginDto;
+
+    const { data, error } = await this.client.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    let userProfile: any = null;
+    if (data.user) {
+      userProfile = await this.getUserProfile(data.user.id);
+    }
+
+    return {
+      success: true,
+      data: {
+        session: data.session,
+        profile: userProfile,
+      },
+    };
+  }
+
+  async logout(token: string) {
+    const { error } = await this.client.auth.admin.signOut(token);
+    
+    if (error) {
+      console.error('Logout error:', error.message);
+    }
+
+    return {
+      success: true,
+      message: 'Successfully logged out.',
+    };
+  }
 }
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(private supabaseService: SupabaseService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -87,7 +157,7 @@ export const RequireRoles = (...roles: UserRole[]) =>
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.get<UserRole[]>(
@@ -106,7 +176,7 @@ export class RolesGuard implements CanActivate {
 // Class enrollment guard
 @Injectable()
 export class ClassMemberGuard implements CanActivate {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -141,7 +211,7 @@ export class ClassMemberGuard implements CanActivate {
 // Assignment grading permission guard
 @Injectable()
 export class CanGradeGuard implements CanActivate {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();

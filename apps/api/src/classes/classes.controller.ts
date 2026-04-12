@@ -16,7 +16,7 @@ import {
   RequireRoles,
 } from '../auth/supabase-auth.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserRole, MessageType } from '../../generated/prisma';
+import { UserRole, MessageType } from '@prisma/client';
 
 @Controller('classes')
 @UseGuards(SupabaseAuthGuard)
