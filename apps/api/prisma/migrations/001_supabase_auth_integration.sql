@@ -32,6 +32,7 @@ LANGUAGE plpgsql SECURITY DEFINER
 AS $$
 BEGIN
   INSERT INTO public.users (
+    id,
     auth_user_id,
     email,
     username, 
@@ -40,6 +41,7 @@ BEGIN
     is_email_verified
   )
   VALUES (
+    NEW.id::text,
     NEW.id,
     NEW.email,
     COALESCE(
