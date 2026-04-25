@@ -51,8 +51,9 @@ export class SupabaseService {
   }
 
   async register(registerDto: any) {
-    const { email, password, firstName, lastName, username } = registerDto;
-    
+    const { email, password, firstName, lastName, username, role } = registerDto;
+
+    //Tạo user trong Supabase Auth
     const { data, error } = await this.client.auth.signUp({
       email,
       password,
@@ -61,7 +62,7 @@ export class SupabaseService {
           first_name: firstName,
           last_name: lastName,
           username: username,
-          role: 'STUDENT',
+          role: role ?? 'STUDENT',
         },
       },
     });
@@ -70,10 +71,31 @@ export class SupabaseService {
       throw error;
     }
 
+    if (!data.user) {
+      throw new Error('Registration failed: no user returned from Supabase Auth');
+    }
+
+    //Lưu profile vào bảng users trong database
+    const userProfile = await this.prisma.user.create({
+      data: {
+        authUserId: data.user.id,
+        email,
+        username: username ?? email.split('@')[0],
+        firstName: firstName ?? '',
+        lastName: lastName ?? '',
+        role: (role as any) ?? 'STUDENT',
+        isEmailVerified: data.user.email_confirmed_at != null,
+        isActive: true,
+      },
+    });
+
     return {
       success: true,
-      message: 'User registered successfully. Please verify email if required.',
-      data: data,
+      message: 'Đăng ký tài khoản thành công.',
+      data: {
+        user: userProfile,
+        session: data.session,
+      },
     };
   }
 
@@ -91,11 +113,22 @@ export class SupabaseService {
 
     let userProfile: any = null;
     if (data.user) {
-      userProfile = await this.getUserProfile(data.user.id);
+      //Lấy profile và cập nhật thời gian đăng nhập cuối
+      userProfile = await this.prisma.user.update({
+        where: { authUserId: data.user.id },
+        data: { lastLogin: new Date(), status: 'ONLINE' },
+        include: {
+          major: true,
+          departmentMemberships: {
+            include: { department: true },
+          },
+        },
+      }).catch(() => null);
     }
 
     return {
       success: true,
+      message: 'Đăng nhập thành công.',
       data: {
         session: data.session,
         profile: userProfile,
@@ -104,15 +137,26 @@ export class SupabaseService {
   }
 
   async logout(token: string) {
+    // Xác định user từ token để cập nhật trạng thái OFFLINE
+    const authUser = await this.getUserFromToken(token);
+    if (authUser) {
+      await this.prisma.user
+        .update({
+          where: { authUserId: authUser.id },
+          data: { status: 'OFFLINE', lastSeen: new Date() },
+        })
+        .catch(() => null);
+    }
+
+    // Vô hiệu hoá session trên Supabase
     const { error } = await this.client.auth.admin.signOut(token);
-    
     if (error) {
       console.error('Logout error:', error.message);
     }
 
     return {
       success: true,
-      message: 'Successfully logged out.',
+      message: 'Đăng xuất thành công.',
     };
   }
 }
