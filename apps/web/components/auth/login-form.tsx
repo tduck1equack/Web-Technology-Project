@@ -33,7 +33,7 @@ export function LoginForm() {
       if (error) {
         setError('Invalid email or password')
       } else {
-        window.location.href = '/dashboard'
+        window.location.href = '/classes'
       }
     } catch (err) {
       setError('An unexpected error occurred')

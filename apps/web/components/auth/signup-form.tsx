@@ -58,12 +58,12 @@ export function SignupForm() {
         <p className="mt-2 text-sm text-gray-600">
           We've sent you a verification link. Please check your email and click the link to activate your account.
         </p>
-        <Link
-          href="/login"
-          className="mt-4 inline-block font-medium text-indigo-600 hover:text-indigo-500"
-        >
-          Return to login
-        </Link>
+        <p className="mt-4 text-sm text-gray-600">
+          You will be redirected to setup your profile in a moment...
+        </p>
+        <script>
+          {`setTimeout(() => { window.location.href = '/setup/organization'; }, 3000);`}
+        </script>
       </div>
     )
   }
