@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Req, UnauthorizedException, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
-import { SupabaseService } from './supabase-auth.service';
+import { Controller, Post, Get, Body, Req, UseGuards, UnauthorizedException, BadRequestException, HttpCode, HttpStatus } from '@nestjs/common';
+import { SupabaseService, SupabaseAuthGuard } from './supabase-auth.service';
 
 @Controller('auth')
 export class AuthController {
@@ -49,5 +49,14 @@ export class AuthController {
     } catch (error: any) {
       throw new BadRequestException(error.message || 'Logout failed');
     }
+  }
+
+  @Get('me')
+  @UseGuards(SupabaseAuthGuard)
+  async getMe(@Req() request: any) {
+    return {
+      success: true,
+      data: request.user,
+    };
   }
 }
